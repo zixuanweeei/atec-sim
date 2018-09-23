@@ -1,0 +1,8 @@
+
+python src/preprocessing.py  atec_nlp_sim_train.csv atec_nlp_sim_train_add.csv --task kfold
+
+python src/convert.py --task w2i --filename local_wv.txt
+python src/convert.py --task train --filename train
+python src/convert.py --task train --filename eval
+
+python src/main.py --task train --training_data data/train_9.tfrecords --eval_data data/eval_9.tfrecords --steps 12000 --batch_size 64 --dropout 0. --pos_weight 1.0 --learning_rate 0.0001 --model_dir model_ckp_9
