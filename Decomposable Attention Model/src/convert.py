@@ -4,7 +4,6 @@ import os
 import codecs
 import io
 import sys
-import copy
 from collections import defaultdict
 
 import pandas as pd
@@ -26,13 +25,13 @@ def word2idx(in_file, out_file):
 
 def get_wi():
     wi = defaultdict(lambda : 0)
-    wi_file = os.path.join("./data", "word2idx.txt")
+    wi_file = os.path.join(FLAGS.dataspace, FLAGS.wi)
     with io.open(wi_file, "r", encoding="utf-8") as reader:
         for line in reader.readlines():
             info = line.split(" ")
             wi[info[0]] = int(info[1])
     pos = defaultdict(lambda : 0)
-    with io.open(os.path.join("./data", "POS_tag.txt"), "r", encoding="utf-8") as reader:
+    with io.open(os.path.join(FLAGS.dataspace, "POS_tag.txt"), "r", encoding="utf-8") as reader:
         for idx, line in enumerate(reader.readlines()):
             pos[line.rstrip()] = idx + 1
 
@@ -69,30 +68,17 @@ def sequence2tfrecords(csv_file, records_file, train=False):
         data.columns = ['s1', 's2']
     
     wi, posi = get_wi()
-    print(len(wi))
-    print(len(posi))
     with tf.python_io.TFRecordWriter(records_file) as writer:
         if train:
             for idx, row in data.iterrows():
                 words1 = pseg.cut(row['s1'], HMM=False)
                 words2 = pseg.cut(row['s2'], HMM=False)
                 s1 = [(wi[word], posi[flag]) for word, flag in words1 if word is not " "]
-                s1.append((wi["</s>"], posi["end"]))
                 s2 = [(wi[word], posi[flag]) for word, flag in words2 if word is not " "]
-                s2.append((wi["</s>"], posi["end"]))
-
-                s1_ = copy.copy(s1)
-                s2_ = copy.copy(s2)
-                len1 = len(s1)
-                len2 = len(s2)
-                s1.extend(s2_)
-                s2.extend(s1_)
-                assert len(s1) == len(s2)
-
                 # s1 = string2idxs(row["s1"], wi)
                 # s2 = string2idxs(row["s2"], wi)
-                assert len(s1) == len1 + len2
-                assert len(s2) == len1 + len2
+                len1 = len(s1)
+                len2 = len(s2)
                 label = row['label']
 
                 ex = tf.train.SequenceExample()
@@ -118,20 +104,11 @@ def sequence2tfrecords(csv_file, records_file, train=False):
                 words1 = pseg.cut(row['s1'], HMM=False)
                 words2 = pseg.cut(row['s2'], HMM=False)
                 s1 = [(wi[word], posi[flag]) for word, flag in words1 if word is not " "]
-                s1.append((wi["</s>"], posi["end"]))
                 s2 = [(wi[word], posi[flag]) for word, flag in words2 if word is not " "]
-                s2.append((wi["</s>"], posi["end"]))
-
-                s1_ = copy.copy(s1)
-                s2_ = copy.copy(s2)
+                # s1 = string2idxs(row["s1"], wi)
+                # s2 = string2idxs(row["s2"], wi)
                 len1 = len(s1)
                 len2 = len(s2)
-                s1.extend(s2_)
-                s2.extend(s1_)
-                assert len(s1) == len(s2)
-
-                assert len(s1) == len1 + len2
-                assert len(s2) == len1 + len2
 
                 ex = tf.train.SequenceExample()
                 ex.context.feature['len1'].int64_list.value.append(len1)
@@ -150,26 +127,6 @@ def sequence2tfrecords(csv_file, records_file, train=False):
                     s2_pos.feature.add().int64_list.value.append(pos)
 
                 writer.write(ex.SerializeToString())
-
-
-def cut(x):
-    words = pseg.cut(x, HMM=False)
-    s = " ".join(["/".join(word) for word in words if word is not " "])
-    return s
-
-
-def to_word_pos_format(csv_file, train=True):
-    data = pd.read_csv(csv_file, header=None, sep='\t', index_col=0)
-    if train:
-        data.columns = ['s1', 's2', 'label']
-    else:
-        if data.shape[1] == 3:
-            data = data.iloc[:, :2]
-        data.columns = ['s1', 's2']
-    data["s1"] = data["s1"].map(cut)
-    data["s2"] = data["s2"].map(cut)
-    data.to_csv("data/train.csv", header=None, sep="\t")
-    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -205,6 +162,3 @@ if __name__ == "__main__":
     elif FLAGS.task == 'w2i':
         in_file = os.path.join(FLAGS.dataspace, FLAGS.filename)
         word2idx(in_file, os.path.join(FLAGS.dataspace, 'word2idx.txt'))
-    elif FLAGS.task == "wpf":
-        in_file = FLAGS.filename + '.csv'        
-        to_word_pos_format(os.path.join(FLAGS.dataspace, in_file))

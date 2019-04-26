@@ -12,7 +12,7 @@ def main():
 
     all_fold_result = pd.concat(result_fold, axis=1)
     avg_fold_result = all_fold_result.mean(axis=1)
-    label = (avg_fold_result > 0.4478).astype(int)
+    label = (avg_fold_result > 0.39325).astype(int)
     label.to_csv(FLAGS.result_name, header=None, index=True, sep="\t")
 
 if __name__ == "__main__":
